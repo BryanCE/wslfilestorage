@@ -15,6 +15,5 @@ type TcpTransport struct {
 func NewTcpTransport(listenAddr string) *TcpTransport {
 	return &TcpTransport{
 		listenAddress: listenAddr,
-		peer: make(map[net.Addr]Peer),
 	}
 }
