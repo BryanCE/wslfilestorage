@@ -1,7 +1,16 @@
 package main
 
-import "fmt" 
+import (
+	"log"
+
+	"github.com/BryanCE/firstmodule/filestorage/p2p"
+)
 
 func main ()  {
-	fmt.Println("Hello, World!")
+	tr := p2p.NewTcpTransport(":3000")
+	if err := tr.ListenAndAccept(); err != nil {
+		log.Fatalf("Error listening and accepting connections: %v", err)
+	}
+
+	select{}
 }
