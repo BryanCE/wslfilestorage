@@ -6,8 +6,8 @@ import (
 	"sync"
 )
 
-// TCPPeer represents remote node
-type TCPPeer struct {
+// TcpPeer represents remote node
+type TcpPeer struct {
 	//conn is underlying TCP connection
 	conn net.Conn
 
@@ -15,33 +15,36 @@ type TCPPeer struct {
 	outbound bool
 }
 
-type TcpTransport struct {
-	listenAddress string
-	listener 	net.Listener
-	shakeHands HandshakeFunc
-	decoder Decoder
-	mu 			sync.RWMutex
-	peer 		map[net.Addr]Peer
+type TcpTransportOptions struct {
+	ListenAddr string
+	HandshakeFunc HandshakeFunc
+	Decoder Decoder
 }
 
-func NewTcpPeer(conn net.Conn, outbound bool) *TCPPeer {
-	return &TCPPeer{
+type TcpTransport struct {
+	TcpTransportOptions
+	listener 			net.Listener
+	mu 					sync.RWMutex
+	peers 				map[net.Addr]Peer
+}
+
+func NewTcpPeer(conn net.Conn, outbound bool) *TcpPeer {
+	return &TcpPeer{
 		conn: conn,
 		outbound: outbound,
 	}
 }
 
 
-func NewTcpTransport(listenAddr string) *TcpTransport {
+func NewTcpTransport(opts TcpTransportOptions) *TcpTransport {
 	return &TcpTransport{
-		shakeHands: NopHandShakeFunc,
-		listenAddress: listenAddr,
+		TcpTransportOptions: opts,
 	}
 }
 
 func (t *TcpTransport) ListenAndAccept() error {
 	var err error
-	t.listener, err = net.Listen("tcp", t.listenAddress)
+	t.listener, err = net.Listen("tcp", t.ListenAddr)
 	if err != nil {
 		return err
 	}
@@ -56,7 +59,7 @@ func (t *TcpTransport) startAcceptLoop() {
 			fmt.Printf("TCP Error accepting connection: %v\n", err)
 		}
 		fmt.Printf("Accepted connection from %v\n", conn.RemoteAddr())
-		
+
 		go t.handleConn(conn)
 	}
 }
@@ -66,18 +69,25 @@ type Temp struct {}
 func (t *TcpTransport) handleConn(conn net.Conn) {	
 	peer := NewTcpPeer(conn, true)
 
-	if err := t.shakeHands(conn); err != nil {
+	if err := t.HandshakeFunc(peer); err != nil {
 		fmt.Printf("Handshake failed with %v: %v\n", peer, err)
-		return
+		return 
 	}
 
 
 	//read loop for connection
-	msg := &Temp{}
+	// msg := &Temp{}
+
+	buf := make([]byte, 2000)
 	for {
-		if err := t.decoder.Decode(conn, msg); err != nil {
-			fmt.Printf("Error decoding message from %v: %v\n", msg, err)
-			continue
+		n, err := conn.Read(buf)
+		if err != nil {
+			fmt.Printf("TCP error: %s\n", err)
 		}
+		// if err := t.Decoder.Decode(conn, msg); err != nil {
+		// 	fmt.Printf("Error decoding message from %v: %v\n", msg, err)
+		// 	continue
+		// }	
+		fmt.Printf("Message: %v\n", buf[:n])	
 	}
 }
